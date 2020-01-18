@@ -38,7 +38,11 @@ if sys.version_info[0] >= 3:
     unicode = str
 
 
-def run_interactive(query, editor=None, just_count=False, default_no=False):
+def run_interactive(query,
+                    editor=None,
+                    just_count=False,
+                    default_no=False,
+                    just_list_files=False):
     """
     Asks the user about each patch suggested by the result of the query.
 
@@ -51,6 +55,15 @@ def run_interactive(query, editor=None, just_count=False, default_no=False):
                         places in the codebase where the query matches.
     """
     global yes_to_all
+
+    # Access file matching layer first:
+    if just_list_files:
+        files = list(query.get_matching_files())
+        for file_name in files:
+            print("- " + file_name)
+        print("Total Files Matched = %d" % (len(files)))
+        print()
+        return
 
     # Load start from bookmark, if appropriate.
     bookmark = _load_bookmark()
@@ -399,6 +412,8 @@ def _parse_command_line():
                              '(e.g. have dot match newlines). '
                              'By default, codemod applies the regex one '
                              'line at a time.')
+    parser.add_argument('--simple-file-match', action='store_true',
+                        help='extension matching simplified to expression: (extension in path)')
     parser.add_argument('-d', action='store', type=str, default='.',
                         help='The path whose descendent files '
                              'are to be explored. '
@@ -448,6 +463,9 @@ def _parse_command_line():
                         help='Don\'t run normally.  Instead, just print '
                              'out number of times places in the codebase '
                              'where the \'query\' matches.')
+    parser.add_argument('--list_files', action='store_true',
+                        help='Don\'t run normally.  Instead, just list'
+                             'the files which match the extensions pattern.')
     parser.add_argument('match', nargs='?', action='store', type=str,
                         help='Regular expression to match.')
     parser.add_argument('subst', nargs='?', action='store', type=str,
@@ -473,9 +491,12 @@ def _parse_command_line():
         exclude_paths = arguments.exclude_paths.split(',')
     else:
         exclude_paths = None
+
+    extensions = re.split('[, ]+', arguments.extensions)
     query_options['path_filter'] = helpers.path_filter(
-        arguments.extensions.split(','),
-        exclude_paths
+        extensions,
+        exclude_paths,
+        arguments.simple_file_match,
     )
 
     options = {}
@@ -483,8 +504,8 @@ def _parse_command_line():
     if arguments.editor is not None:
         options['editor'] = arguments.editor
     options['just_count'] = arguments.count
+    options['just_list_files'] = arguments.list_files
     options['default_no'] = arguments.default_no
-
     return options
 
 

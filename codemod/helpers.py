@@ -21,7 +21,7 @@ def is_extensionless(path):
     return ext == ''
 
 
-def matches_extension(path, extension):
+def matches_extension(path, extension, simple_match=False):
     """
     Returns True if path has the given extension, or if
     the last path component matches the extension. Supports
@@ -34,6 +34,11 @@ def matches_extension(path, extension):
     >>> matches_extension("./LICENSE", "LICENSE")
     True
     """
+    if simple_match:
+        return path == extension \
+            or path == "./" + extension \
+            or os.path.basename(path) == extension
+
     _, ext = os.path.splitext(path)
     if ext == '':
         # If there is no extension, grab the file name and
@@ -45,7 +50,7 @@ def matches_extension(path, extension):
         return fnmatch.fnmatch(ext[1:], extension)
 
 
-def path_filter(extensions, exclude_paths=None):
+def path_filter(extensions, exclude_paths=None, simple_match=False):
     """
     Returns a function that returns True if a filepath is acceptable.
 
@@ -79,7 +84,7 @@ def path_filter(extensions, exclude_paths=None):
     exclude_paths = exclude_paths or []
 
     def the_filter(path):
-        if not any(matches_extension(path, extension)
+        if not any(matches_extension(path, extension, simple_match)
                    for extension in extensions):
             return False
         if exclude_paths:

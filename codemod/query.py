@@ -13,6 +13,7 @@ class Query(object):
     >>> Query(lambda x: None, start='profile.php:20').start_position
     Position('profile.php', 20)
     """
+
     def __init__(self,
                  suggestor,
                  start=None,
@@ -22,7 +23,6 @@ class Query(object):
                      extensions=['php', 'phpt', 'js', 'css', 'rb', 'erb']
                  ),
                  inc_extensionless=False):
-
         """
         @param suggestor            A function that takes a list of lines and
                                     generates instances of Patch to suggest.
@@ -123,6 +123,23 @@ class Query(object):
             int(len(all_patches) * percentage / 100)
         ].start_position
 
+    def get_matching_files(self,
+                           start_pos=Position(None, None),
+                           end_pos=Position(None, None)):
+        """
+        Returns an an iterable.
+        Each item is a file which matches the extension pattern.
+        """
+        path_list = Query._walk_directory(self.root_directory)
+        path_list = Query._sublist(path_list, start_pos.path, end_pos.path)
+        path_list = (
+            path for path in path_list if
+            Query._path_looks_like_code(path) and
+            (self.path_filter(path)) or
+            (self.inc_extensionless and helpers.is_extensionless(path))
+        )
+        return path_list
+
     def generate_patches(self):
         """
         Generates a list of patches for each file underneath
@@ -134,14 +151,8 @@ class Query(object):
         start_pos = self.start_position or Position(None, None)
         end_pos = self.end_position or Position(None, None)
 
-        path_list = Query._walk_directory(self.root_directory)
-        path_list = Query._sublist(path_list, start_pos.path, end_pos.path)
-        path_list = (
-            path for path in path_list if
-            Query._path_looks_like_code(path) and
-            (self.path_filter(path)) or
-            (self.inc_extensionless and helpers.is_extensionless(path))
-        )
+        path_list = self.get_matching_files(start_pos, end_pos)
+
         for path in path_list:
             try:
                 lines = list(open(path))
